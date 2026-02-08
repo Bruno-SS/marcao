@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Bruno Doidão 2D com Pause</title>
+  <title>Bruno Doidão 2D com Inimigos Atirando</title>
   <style>
     body { background: black; color: white; text-align: center; }
     canvas { display: block; margin: auto; }
@@ -46,6 +46,7 @@
     // Player gigante
     const player = { x: 320, y: 380, hp: 100, score: 0, size: 200 };
     const bullets = [];
+    const enemyBullets = [];
     let enemies = [
       { x: 100, y: 100, alive: true, big: false },
       { x: 500, y: 200, alive: true, big: false }
@@ -58,7 +59,7 @@
     let paused = false;
 
     function update() {
-      if(paused) return; // não atualiza se pausado
+      if(paused) return;
 
       if(keys[37]) player.x -= 8;
       if(keys[39]) player.x += 8;
@@ -71,6 +72,7 @@
         keys[32] = false;
       }
 
+      // Atualiza balas do player
       bullets.forEach(b => {
         b.x += b.dx;
         b.y += b.dy;
@@ -83,6 +85,30 @@
           }
         });
       });
+
+      // Inimigos atiram aleatoriamente
+      enemies.forEach(e => {
+        if(e.alive && Math.random() < 0.01) { // chance de atirar
+          enemyBullets.push({ x: e.x, y: e.y, dx: 0, dy: 5 });
+        }
+      });
+
+      // Atualiza balas dos inimigos
+      enemyBullets.forEach(b => {
+        b.x += b.dx;
+        b.y += b.dy;
+        if(Math.abs(b.x - player.x) < player.size/2 && Math.abs(b.y - player.y) < player.size/2) {
+          player.hp -= 10; // perde HP ao ser atingido
+          b.hit = true;
+        }
+      });
+
+      // Remove balas que acertaram ou saíram da tela
+      for(let i = enemyBullets.length-1; i >= 0; i--) {
+        if(enemyBullets[i].hit || enemyBullets[i].y > 480) {
+          enemyBullets.splice(i,1);
+        }
+      }
     }
 
     function draw() {
@@ -94,9 +120,13 @@
       // Player gigante
       ctx.drawImage(playerImg, player.x - player.size/2, player.y - player.size/2, player.size, player.size);
 
-      // Balas
+      // Balas do player
       ctx.fillStyle = "red";
       bullets.forEach(b => ctx.fillRect(b.x, b.y, 4, 8));
+
+      // Balas dos inimigos
+      ctx.fillStyle = "yellow";
+      enemyBullets.forEach(b => ctx.fillRect(b.x, b.y, 6, 12));
 
       // Inimigos
       enemies.forEach(e => {
