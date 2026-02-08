@@ -1,22 +1,29 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Bruno Doidão 2D com Inimigos Atirando</title>
+  <title>Bruno Doidão 2D com Ranking Colorido</title>
   <style>
     body { background: black; color: white; text-align: center; }
     canvas { display: block; margin: auto; }
-    #start, #pause {
+    #start, #pause, #restart {
       font-size: 20px;
       padding: 10px 20px;
       margin: 10px;
       cursor: pointer;
     }
+    #playerName {
+      font-size: 18px;
+      padding: 5px;
+      margin: 10px;
+    }
   </style>
 </head>
 <body>
   <h2>Bruno Doidão 2D</h2>
+  <input id="playerName" type="text" placeholder="Digite seu nome">
   <button id="start">▶ Iniciar Jogo</button>
   <button id="pause" style="display:none;">⏸ Pause</button>
+  <button id="restart" style="display:none;">🔄 Reiniciar</button>
   <canvas id="game" width="640" height="480"></canvas>
 
   <script>
@@ -33,6 +40,7 @@
     // Sons
     const shootBuffer = new Audio("shoot.wav");
     const deathBuffer = new Audio("death.wav");
+    const gameOverSound = new Audio("gameover.wav");
     const music = new Audio("doom_music.mp3");
     music.loop = true;
     music.volume = 0.2;
@@ -44,22 +52,36 @@
     }
 
     // Player gigante
-    const player = { x: 320, y: 380, hp: 100, score: 0, size: 200 };
-    const bullets = [];
-    const enemyBullets = [];
-    let enemies = [
-      { x: 100, y: 100, alive: true, big: false },
-      { x: 500, y: 200, alive: true, big: false }
-    ];
+    let player, bullets, enemyBullets, enemies;
+    let paused = false;
+    let gameOver = false;
+    let loopInterval;
+
+    // Ranking Top 3
+    let ranking = [];
+
+    function resetGame() {
+      player = { x: 320, y: 380, hp: 100, score: 0, size: 200 };
+      bullets = [];
+      enemyBullets = [];
+      enemies = [
+        { x: 100, y: 100, alive: true, big: false },
+        { x: 500, y: 200, alive: true, big: false }
+      ];
+      paused = false;
+      gameOver = false;
+      document.getElementById("pause").style.display = "inline-block";
+      document.getElementById("restart").style.display = "none";
+      music.currentTime = 0;
+      music.play();
+    }
 
     const keys = {};
     document.onkeydown = e => keys[e.keyCode] = true;
     document.onkeyup = e => keys[e.keyCode] = false;
 
-    let paused = false;
-
     function update() {
-      if(paused) return;
+      if(paused || gameOver) return;
 
       if(keys[37]) player.x -= 8;
       if(keys[39]) player.x += 8;
@@ -72,7 +94,7 @@
         keys[32] = false;
       }
 
-      // Atualiza balas do player
+      // Balas do player
       bullets.forEach(b => {
         b.x += b.dx;
         b.y += b.dy;
@@ -86,24 +108,37 @@
         });
       });
 
-      // Inimigos atiram aleatoriamente
+      // Inimigos atiram
       enemies.forEach(e => {
-        if(e.alive && Math.random() < 0.01) { // chance de atirar
+        if(e.alive && Math.random() < 0.01) {
           enemyBullets.push({ x: e.x, y: e.y, dx: 0, dy: 5 });
         }
       });
 
-      // Atualiza balas dos inimigos
+      // Balas dos inimigos
       enemyBullets.forEach(b => {
         b.x += b.dx;
         b.y += b.dy;
         if(Math.abs(b.x - player.x) < player.size/2 && Math.abs(b.y - player.y) < player.size/2) {
-          player.hp -= 10; // perde HP ao ser atingido
+          player.hp -= 10;
           b.hit = true;
+          if(player.hp <= 0) {
+            gameOver = true;
+            music.pause();
+            gameOverSound.play();
+            document.getElementById("pause").style.display = "none";
+            document.getElementById("restart").style.display = "inline-block";
+
+            // Atualiza ranking
+            let name = document.getElementById("playerName").value || "Anônimo";
+            ranking.push({ name: name, score: player.score });
+            ranking.sort((a,b) => b.score - a.score);
+            if(ranking.length > 3) ranking = ranking.slice(0,3);
+          }
         }
       });
 
-      // Remove balas que acertaram ou saíram da tela
+      // Remove balas
       for(let i = enemyBullets.length-1; i >= 0; i--) {
         if(enemyBullets[i].hit || enemyBullets[i].y > 480) {
           enemyBullets.splice(i,1);
@@ -117,7 +152,7 @@
       // Fundo
       ctx.drawImage(bgImg, 0, 0, 640, 480);
 
-      // Player gigante
+      // Player
       ctx.drawImage(playerImg, player.x - player.size/2, player.y - player.size/2, player.size, player.size);
 
       // Balas do player
@@ -147,10 +182,27 @@
       ctx.fillText("HP: " + player.hp, 20, 460);
       ctx.fillText("Score: " + player.score, 500, 460);
 
+      // Ranking Top 3 colorido e espaçado com título
+      ctx.font = "14px Arial";
+      ctx.fillStyle = "white";
+      ctx.fillText("Ranking:", 20, 20);
+
+      const colors = ["gold", "silver", "orange"];
+      ranking.forEach((r, i) => {
+        ctx.fillStyle = colors[i];
+        ctx.fillText((i+1)+"º "+r.name+": "+r.score, 120 + i*160, 20); 
+      });
+
       if(paused) {
         ctx.fillStyle = "yellow";
         ctx.font = "30px Arial";
         ctx.fillText("PAUSADO", 250, 240);
+      }
+
+      if(gameOver) {
+        ctx.fillStyle = "red";
+        ctx.font = "40px Arial";
+        ctx.fillText("GAME OVER", 220, 240);
       }
     }
 
@@ -161,17 +213,22 @@
 
     // Botão iniciar
     document.getElementById("start").addEventListener("click", () => {
-      music.play();
+      resetGame();
       document.getElementById("start").style.display = "none";
-      document.getElementById("pause").style.display = "inline-block";
-      setInterval(loop, 1000/30);
+      loopInterval = setInterval(loop, 1000/30);
     });
 
     // Botão pause
     document.getElementById("pause").addEventListener("click", () => {
+      if(gameOver) return;
       paused = !paused;
       document.getElementById("pause").textContent = paused ? "▶ Continuar" : "⏸ Pause";
       if(paused) music.pause(); else music.play();
+    });
+
+    // Botão reiniciar
+    document.getElementById("restart").addEventListener("click", () => {
+      resetGame();
     });
   </script>
 </body>
