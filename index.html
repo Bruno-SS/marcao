@@ -1,15 +1,24 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Bruno Doidão 2D com Áudio Suave</title>
+  <title>Bruno Doidão 2D com Pause</title>
   <style>
     body { background: black; color: white; text-align: center; }
     canvas { display: block; margin: auto; }
+    #start, #pause {
+      font-size: 20px;
+      padding: 10px 20px;
+      margin: 10px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
   <h2>Bruno Doidão 2D</h2>
+  <button id="start">▶ Iniciar Jogo</button>
+  <button id="pause" style="display:none;">⏸ Pause</button>
   <canvas id="game" width="640" height="480"></canvas>
+
   <script>
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
@@ -21,13 +30,18 @@
     const bossImg = new Image(); bossImg.src = "boss.png";
     const bloodImg = new Image(); bloodImg.src = "blood.png";
 
-    // Sons (pré-carregados)
+    // Sons
     const shootBuffer = new Audio("shoot.wav");
     const deathBuffer = new Audio("death.wav");
     const music = new Audio("doom_music.mp3");
     music.loop = true;
-    music.volume = 0.4;
-    music.play();
+    music.volume = 0.2;
+
+    function playSound(buffer) {
+      const sound = buffer.cloneNode();
+      sound.volume = 0.6;
+      sound.play();
+    }
 
     // Player gigante
     const player = { x: 320, y: 380, hp: 100, score: 0, size: 200 };
@@ -41,14 +55,11 @@
     document.onkeydown = e => keys[e.keyCode] = true;
     document.onkeyup = e => keys[e.keyCode] = false;
 
-    function playSound(buffer) {
-      // cria uma cópia para evitar corte
-      const sound = buffer.cloneNode();
-      sound.volume = 0.6;
-      sound.play();
-    }
+    let paused = false;
 
     function update() {
+      if(paused) return; // não atualiza se pausado
+
       if(keys[37]) player.x -= 8;
       if(keys[39]) player.x += 8;
       if(keys[38]) player.y -= 8;
@@ -68,7 +79,6 @@
             e.alive = false;
             player.score += 100;
             playSound(deathBuffer);
-            // spawn inimigo maior
             enemies.push({ x: Math.random()*600, y: Math.random()*300, alive: true, big: true });
           }
         });
@@ -106,6 +116,12 @@
       ctx.font = "16px Arial";
       ctx.fillText("HP: " + player.hp, 20, 460);
       ctx.fillText("Score: " + player.score, 500, 460);
+
+      if(paused) {
+        ctx.fillStyle = "yellow";
+        ctx.font = "30px Arial";
+        ctx.fillText("PAUSADO", 250, 240);
+      }
     }
 
     function loop() {
@@ -113,7 +129,20 @@
       draw();
     }
 
-    setInterval(loop, 1000/30);
+    // Botão iniciar
+    document.getElementById("start").addEventListener("click", () => {
+      music.play();
+      document.getElementById("start").style.display = "none";
+      document.getElementById("pause").style.display = "inline-block";
+      setInterval(loop, 1000/30);
+    });
+
+    // Botão pause
+    document.getElementById("pause").addEventListener("click", () => {
+      paused = !paused;
+      document.getElementById("pause").textContent = paused ? "▶ Continuar" : "⏸ Pause";
+      if(paused) music.pause(); else music.play();
+    });
   </script>
 </body>
 </html>
