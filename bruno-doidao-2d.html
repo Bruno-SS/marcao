@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Bruno Doidão 2D com Áudio Suave</title>
+  <style>
+    body { background: black; color: white; text-align: center; }
+    canvas { display: block; margin: auto; }
+  </style>
+</head>
+<body>
+  <h2>Bruno Doidão 2D</h2>
+  <canvas id="game" width="640" height="480"></canvas>
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    // Sprites
+    const bgImg = new Image(); bgImg.src = "doom_background.png";
+    const playerImg = new Image(); playerImg.src = "player.png";
+    const enemyImg = new Image(); enemyImg.src = "enemy.png";
+    const bossImg = new Image(); bossImg.src = "boss.png";
+    const bloodImg = new Image(); bloodImg.src = "blood.png";
+
+    // Sons (pré-carregados)
+    const shootBuffer = new Audio("shoot.wav");
+    const deathBuffer = new Audio("death.wav");
+    const music = new Audio("doom_music.mp3");
+    music.loop = true;
+    music.volume = 0.4;
+    music.play();
+
+    // Player gigante
+    const player = { x: 320, y: 380, hp: 100, score: 0, size: 200 };
+    const bullets = [];
+    let enemies = [
+      { x: 100, y: 100, alive: true, big: false },
+      { x: 500, y: 200, alive: true, big: false }
+    ];
+
+    const keys = {};
+    document.onkeydown = e => keys[e.keyCode] = true;
+    document.onkeyup = e => keys[e.keyCode] = false;
+
+    function playSound(buffer) {
+      // cria uma cópia para evitar corte
+      const sound = buffer.cloneNode();
+      sound.volume = 0.6;
+      sound.play();
+    }
+
+    function update() {
+      if(keys[37]) player.x -= 8;
+      if(keys[39]) player.x += 8;
+      if(keys[38]) player.y -= 8;
+      if(keys[40]) player.y += 8;
+
+      if(keys[32]) { // espaço para atirar
+        bullets.push({ x: player.x, y: player.y - player.size/2, dx: 0, dy: -15 });
+        playSound(shootBuffer);
+        keys[32] = false;
+      }
+
+      bullets.forEach(b => {
+        b.x += b.dx;
+        b.y += b.dy;
+        enemies.forEach(e => {
+          if(e.alive && Math.abs(b.x - e.x) < 20 && Math.abs(b.y - e.y) < 20) {
+            e.alive = false;
+            player.score += 100;
+            playSound(deathBuffer);
+            // spawn inimigo maior
+            enemies.push({ x: Math.random()*600, y: Math.random()*300, alive: true, big: true });
+          }
+        });
+      });
+    }
+
+    function draw() {
+      ctx.clearRect(0,0,640,480);
+
+      // Fundo
+      ctx.drawImage(bgImg, 0, 0, 640, 480);
+
+      // Player gigante
+      ctx.drawImage(playerImg, player.x - player.size/2, player.y - player.size/2, player.size, player.size);
+
+      // Balas
+      ctx.fillStyle = "red";
+      bullets.forEach(b => ctx.fillRect(b.x, b.y, 4, 8));
+
+      // Inimigos
+      enemies.forEach(e => {
+        if(e.alive) {
+          if(e.big) {
+            ctx.drawImage(bossImg, e.x-30, e.y-30, 60, 60);
+          } else {
+            ctx.drawImage(enemyImg, e.x-20, e.y-20, 40, 40);
+          }
+        } else {
+          ctx.drawImage(bloodImg, e.x-20, e.y-20, 40, 40);
+        }
+      });
+
+      // HUD
+      ctx.fillStyle = "white";
+      ctx.font = "16px Arial";
+      ctx.fillText("HP: " + player.hp, 20, 460);
+      ctx.fillText("Score: " + player.score, 500, 460);
+    }
+
+    function loop() {
+      update();
+      draw();
+    }
+
+    setInterval(loop, 1000/30);
+  </script>
+</body>
+</html>
